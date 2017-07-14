@@ -1,0 +1,12 @@
+
+class Simu_env:
+    def __init__(self, port_num):
+        # super(Vrep_env, self).__init__(port_num)
+        self.action_space = ['l', 'f', 'r', 'h', 'e']
+        self.n_actions = len(self.action_space)
+        # self.n_features = 2
+        # self.title('Vrep_env')
+        self.port_num = port_num
+        self.reached_index = -1
+        # self.geometry('{0}x{1}'.format(MAZE_H * UNIT, MAZE_H * UNIT))
+        # self.clientID = self._connect_vrep(port_num)
