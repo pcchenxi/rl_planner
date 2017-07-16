@@ -9,7 +9,7 @@ import vrep
 import matplotlib.pyplot as plt
 
 action_list = []
-state_size = 2
+state_size = 182
 action_size = 9
 
 vrep.simxFinish(-1) # just in case, close all opened connections
@@ -100,12 +100,12 @@ class Simu_env:
 
 
     def convert_state(self, laser_points, current_pose, path):
-        # path = np.asarray(path)
-        # laser_points = np.asarray(laser_points)
-        # state = np.append(path, laser_points)
+        path = np.asarray(path)
+        laser_points = np.asarray(laser_points)
+        state = np.append(path, laser_points)
 
-        state = np.asarray(path)
-        state = state.flatten()
+        # state = np.asarray(path)
+        # state = state.flatten()
         return state
 
         
@@ -132,7 +132,7 @@ class Simu_env:
         ########################################################################################################################################
 
         path_f = []
-        sub_path = [path_x[-1], path_y[-1]] # target x, target y (not angle)
+        sub_path = [path_x[-1], path_y[-1]] # target x, target y (or angle)
         path_f.append(sub_path)
 
         state_ = self.convert_state(laser_points, current_pose, path_f)
@@ -146,6 +146,7 @@ class Simu_env:
         reward = 0
 
         dist = math.sqrt(paty_x[-1]*paty_x[-1] + path_y[-1]*path_y[-1])
+        # dist = paty_x[-1]
         if dist < self.dist_pre:  # when closer to target
             reward = 1
         else:
@@ -157,12 +158,12 @@ class Simu_env:
             is_finish = True
             reward = 5
 
-        if dist > 6:                # when too far away to the target
+        if dist > 5:                # when too far away to the target
             is_finish = True
             reward = -1
 
         if found_pose == 'f':       # when collision or no pose can be found
-            is_finish = True  
+            # is_finish = True  
             reward = -5
 
         reward -= 1

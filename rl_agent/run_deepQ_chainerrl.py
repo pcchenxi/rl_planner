@@ -86,7 +86,7 @@ agent = chainerrl.agents.DQN(
 n_episodes = 20000
 max_episode_len = 200
 
-chainer.serializers.load_npz("../model/xy.model", q_func)
+chainer.serializers.load_npz("../model/deepq_xy.model", q_func)
 
 for i in range(1, n_episodes + 1):
     obs = env.reset()

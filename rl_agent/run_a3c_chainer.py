@@ -36,18 +36,85 @@ import sys, os
 sys.path.append("../environment") 
 import env_vrep
 
+import time
+file_name = time.time()
+
 processor_status = [0, 0, 0, 0]
+
+def save_model(env, agent, global_t):
+    if global_t%20 == 0:
+        chainer.serializers.save_npz("../model/" + str(file_name) + ".model", agent.model)
+    # if global_t%400 == 0:
+    #     file_name = time.time()
 
 def phi(obs):
     return obs.astype(np.float32)
 
-
-class A3CFFSoftmax(chainer.ChainList, a3c.A3CModel):
+class A3CFFSoftmax_laser(chainer.ChainList, a3c.A3CModel):
     """An example of A3C feedforward softmax policy."""
 
-    def __init__(self, ndim_obs, n_actions, hidden_sizes=(200, 200)):
+    def __init__(self, obs_size, n_actions):
+        with self.init_scope():
+            self.conv1 = L.Convolution2D(in_channels=1, out_channels=16, ksize=[1, 8], stride=1)
+            self.conv2 = L.Convolution2D(in_channels=16, out_channels=32, ksize=[1, 4], stride=1)
+            self.conv3 = L.Convolution2D(in_channels=32, out_channels=32, ksize=[1, 4], stride=1)
+            self.l1=L.Linear(5344, 64)
+            self.l2=L.Linear(66, 256)
+            self.l3=L.Linear(256, 29) #actor
+            self.l4=L.Linear(256, 128) # critic
+            self.pi=policies.SoftmaxPolicy(model = L.Linear(29, n_actions))
+            self.v=L.Linear(128, 1)
+
+        super().__init__(self.pi, self.v)
+
+    def pi_and_v(self, state):
+        path = state[:, :2]
+        laser = state[:, 2:]
+
+        laser_in = np.expand_dims(laser, axis=1)
+        laser_in = np.expand_dims(laser_in, axis=1)
+
+        h = F.relu(self.conv1(laser_in))
+        h = F.relu(self.conv2(h))
+        h = F.relu(self.conv3(h))
+
+        flat = h.data
+
+        fc1_in = np.zeros([flat.shape[0], flat.shape[1]*flat.shape[2]*flat.shape[3]]).astype(np.float32)
+        for i in range(flat.shape[0]):
+            temp = flat[i]
+            temp = temp.flatten()
+            fc1_in[i] = temp
+
+        h = F.relu(self.l1(fc1_in))
+
+        ## add target position
+        flat = h.data
+        fc2_in = np.zeros([flat.shape[0], flat.shape[1]+path.shape[1]]).astype(np.float32)
+
+        for i in range(flat.shape[0]):
+            temp2 = np.append(flat[i], path[i])
+            fc2_in[i] = temp2
+
+        features = F.relu(self.l2(fc2_in))
+
+        value_pi = F.relu(self.l3(features))
+        value_v = F.relu(self.l4(features))
+
+        value_pi = self.pi(value_pi)
+        value_v = self.v(value_v)
+        # print fc2_in.shape
+
+        # h = self.l3(h)
+
+        return value_pi, value_v
+
+class A3CFFSoftmax_basic(chainer.ChainList, a3c.A3CModel):
+    """An example of A3C feedforward softmax policy."""
+
+    def __init__(self, ndim_obs, n_actions, hidden_sizes=(200, 200, 100)):
         self.pi = policies.SoftmaxPolicy(
-            model=links.MLP(ndim_obs, n_actions, hidden_sizes))
+            model=links.MLP(ndim_obs, n_actions, hidden_sizes = hidden_sizes))
         self.v = links.MLP(ndim_obs, 1, hidden_sizes=hidden_sizes)
         super().__init__(self.pi, self.v)
 
@@ -147,8 +214,8 @@ def main():
     action_space = env_vrep.action_size
     timestep_limit = 200
 
-    model = A3CFFSoftmax(obs_space, action_space)
-
+    # model = A3CFFSoftmax_basic(obs_space, action_space)
+    model = A3CFFSoftmax_laser(obs_space, action_space)
 
     opt = rmsprop_async.RMSpropAsync(
         lr=args.lr, eps=args.rmsprop_epsilon, alpha=0.99)
@@ -172,7 +239,8 @@ def main():
         steps=args.steps,
         eval_n_runs=args.eval_n_runs,
         eval_interval=args.eval_interval,
-        max_episode_len=timestep_limit)
+        max_episode_len=timestep_limit,
+        global_step_hooks = [save_model])
 
 
 if __name__ == '__main__':
