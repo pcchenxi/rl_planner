@@ -119,8 +119,6 @@ function sample_init()
 
     -- sample target position
     local target_pos = {}
-    local range_x = x_range * scale
-    local range_y = y_range * scale
     target_pos[1] = math.random() * x_range - x_range/2
     target_pos[2] = math.random() * x_range - x_range/2
     -- local dist_to_start = 0.3
@@ -160,10 +158,10 @@ function init()
         init_value = sample_init()
     end
 
-    scale = scale + 0.0002
-    if scale > 1 then
-        scale = 1
-    end 
+    -- scale = scale + 0.0002
+    -- if scale > 1 then
+    --     scale = 1
+    -- end 
 
     g_path = generate_path()
     path_dummy_list = create_path_dummy(g_path)

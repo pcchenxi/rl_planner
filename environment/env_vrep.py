@@ -9,6 +9,11 @@ import vrep
 import matplotlib.pyplot as plt
 
 action_list = []
+state_size = 2
+action_size = 9
+
+vrep.simxFinish(-1) # just in case, close all opened connections
+print 'init vrep'
 
 for a in range(-1, 2):
     for b in range(-1, 2):
@@ -40,11 +45,11 @@ class Simu_env:
         self.dist_pre = 100
         
         self.path_used = 1
-        self.state_size = 2
-        self.action_size = 9
+        self.state_size = state_size
+        self.action_size = action_size
         # self.geometry('{0}x{1}'.format(MAZE_H * UNIT, MAZE_H * UNIT))
         # self.clientID = self._connect_vrep(port_num)
-
+        
 
     def connect_vrep(self, close_all = False):
         if close_all:
@@ -54,7 +59,7 @@ class Simu_env:
         if clientID != -1:
             print 'Connected to remote API server with port: ', self.port_num, close_all
         else:
-            print 'Failed connecting to remote API server'
+            print 'Failed connecting to remote API server with port: ', self.port_num
 
         self.clientID = clientID
         # return clientID
@@ -111,8 +116,9 @@ class Simu_env:
         return state
 
     def step(self, action):
-        if len(action) == 1:
-            action = action_list[action[0]]
+        # print type(action)
+        if isinstance(action, np.int32) or isinstance(action, int):
+            action = action_list[action]
 
         res, retInts, current_pose, retStrings, found_pose = self.call_sim_function('rwRobot', 'step', action)
 

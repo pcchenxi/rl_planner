@@ -86,7 +86,7 @@ agent = chainerrl.agents.DQN(
 n_episodes = 20000
 max_episode_len = 200
 
-chainer.serializers.load_npz("model/xy.model", q_func)
+chainer.serializers.load_npz("../model/xy.model", q_func)
 
 for i in range(1, n_episodes + 1):
     obs = env.reset()
@@ -98,7 +98,8 @@ for i in range(1, n_episodes + 1):
         # Uncomment to watch the behaviour
         # env.render()
         action = agent.act_and_train(obs, reward)
-        obs, reward, done, _ = env.step([action])
+        # print action
+        obs, reward, done, _ = env.step(action)
         R += reward
         t += 1
         print obs, action, reward
@@ -106,7 +107,7 @@ for i in range(1, n_episodes + 1):
         o = o.astype(np.float32, copy=False)
         print q_func(o)
         if t % 10 == 0:
-            chainer.serializers.save_npz("model/" + str(file_name) + ".model", q_func)
+            chainer.serializers.save_npz("../model/" + str(file_name) + ".model", q_func)
 
     # if i % 10 == 0:
     print('episode:', i,
