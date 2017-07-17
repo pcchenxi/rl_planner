@@ -55,10 +55,10 @@ class A3CFFSoftmax_laser(chainer.ChainList, a3c.A3CModel):
 
     def __init__(self, obs_size, n_actions):
         with self.init_scope():
-            self.conv1 = L.Convolution2D(in_channels=1, out_channels=16, ksize=[1, 8], stride=1)
-            self.conv2 = L.Convolution2D(in_channels=16, out_channels=32, ksize=[1, 4], stride=1)
-            self.conv3 = L.Convolution2D(in_channels=32, out_channels=32, ksize=[1, 4], stride=1)
-            self.l1=L.Linear(5344, 64)
+            self.conv1 = L.Convolution2D(in_channels=1, out_channels=16, ksize=[1, 8], stride=1, pad=[0, 4])
+            self.conv2 = L.Convolution2D(in_channels=16, out_channels=32, ksize=[1, 4], stride=1, pad=[0, 2])
+            self.conv3 = L.Convolution2D(in_channels=32, out_channels=32, ksize=[1, 4], stride=1, pad=[0, 2])
+            self.l1=L.Linear(1504, 64)
             self.l2=L.Linear(66, 256)
             self.l3=L.Linear(256, 29) #actor
             self.l4=L.Linear(256, 128) # critic
@@ -75,9 +75,15 @@ class A3CFFSoftmax_laser(chainer.ChainList, a3c.A3CModel):
         laser_in = np.expand_dims(laser_in, axis=1)
 
         h = F.relu(self.conv1(laser_in))
+        # print (h.shape)
+        h = F.max_pooling_2d(h, 2, 2)
+        # print (h.shape)
         h = F.relu(self.conv2(h))
+        # print (h.shape)
+        h = F.max_pooling_2d(h, 2, 2)
+        # print (h.shape)
         h = F.relu(self.conv3(h))
-
+        # print (h.shape) 
         flat = h.data
 
         fc1_in = np.zeros([flat.shape[0], flat.shape[1]*flat.shape[2]*flat.shape[3]]).astype(np.float32)
@@ -86,6 +92,7 @@ class A3CFFSoftmax_laser(chainer.ChainList, a3c.A3CModel):
             temp = temp.flatten()
             fc1_in[i] = temp
 
+        # print (fc1_in.shape)
         h = F.relu(self.l1(fc1_in))
 
         ## add target position
@@ -216,6 +223,8 @@ def main():
 
     # model = A3CFFSoftmax_basic(obs_space, action_space)
     model = A3CFFSoftmax_laser(obs_space, action_space)
+
+    chainer.serializers.load_npz("../model/k.model", model)
 
     opt = rmsprop_async.RMSpropAsync(
         lr=args.lr, eps=args.rmsprop_epsilon, alpha=0.99)
