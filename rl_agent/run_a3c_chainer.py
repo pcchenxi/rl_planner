@@ -58,8 +58,9 @@ class A3CFFSoftmax_laser(chainer.ChainList, a3c.A3CModel):
             self.conv1 = L.Convolution2D(in_channels=1, out_channels=16, ksize=[1, 8], stride=1, pad=[0, 4])
             self.conv2 = L.Convolution2D(in_channels=16, out_channels=32, ksize=[1, 4], stride=1, pad=[0, 2])
             self.conv3 = L.Convolution2D(in_channels=32, out_channels=32, ksize=[1, 4], stride=1, pad=[0, 2])
+            self.l_path = links.MLP(2, 30, hidden_sizes=(30,30))
             self.l1=L.Linear(1504, 64)
-            self.l2=L.Linear(66, 256)
+            self.l2=L.Linear(94, 256)
             self.l3=L.Linear(256, 29) #actor
             self.l4=L.Linear(256, 128) # critic
             self.pi=policies.SoftmaxPolicy(model = L.Linear(29, n_actions))
@@ -71,6 +72,7 @@ class A3CFFSoftmax_laser(chainer.ChainList, a3c.A3CModel):
         path = state[:, :2]
         laser = state[:, 2:]
 
+        # laser net
         laser_in = np.expand_dims(laser, axis=1)
         laser_in = np.expand_dims(laser_in, axis=1)
 
@@ -95,12 +97,16 @@ class A3CFFSoftmax_laser(chainer.ChainList, a3c.A3CModel):
         # print (fc1_in.shape)
         h = F.relu(self.l1(fc1_in))
 
+        # path net
+        path = self.l_path(path)
+        # print (path.shape)
+
         ## add target position
         flat = h.data
         fc2_in = np.zeros([flat.shape[0], flat.shape[1]+path.shape[1]]).astype(np.float32)
 
         for i in range(flat.shape[0]):
-            temp2 = np.append(flat[i], path[i])
+            temp2 = np.append(flat[i], path[i].data)
             fc2_in[i] = temp2
 
         features = F.relu(self.l2(fc2_in))
@@ -224,7 +230,7 @@ def main():
     # model = A3CFFSoftmax_basic(obs_space, action_space)
     model = A3CFFSoftmax_laser(obs_space, action_space)
 
-    chainer.serializers.load_npz("../model/k.model", model)
+    # chainer.serializers.load_npz("../model/k.model", model)
 
     opt = rmsprop_async.RMSpropAsync(
         lr=args.lr, eps=args.rmsprop_epsilon, alpha=0.99)
