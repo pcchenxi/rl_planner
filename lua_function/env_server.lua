@@ -210,10 +210,10 @@ start_ori = simGetObjectQuaternion(robot_hd,-1)
 -- act = do_action(robot_hd, joint_hds, action)
 -- print (act[1], act[2])
 
--- while simGetSimulationState()~=sim_simulation_advancing_abouttostop do
---     -- do something in here
---     simSwitchThread()
--- end
+while simGetSimulationState()~=sim_simulation_advancing_abouttostop do
+    -- do something in here
+    simSwitchThread()
+end
 
 
 
