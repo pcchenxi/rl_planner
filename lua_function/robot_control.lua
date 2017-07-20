@@ -128,3 +128,20 @@ set_collision_hd=function(name1, name2)
     _collision_hd_2 = simGetCollectionHandle(name2)
 end
 
+
+get_intersection_point=function(x0, y0, x1, y1, r0, r1)
+    local d=math.sqrt((x1-x0)^2 + (y1-y0)^2)
+    if d>(r0+r1) then
+        return -1, -1
+    end
+    
+    local a=(r0^2-r1^2+d^2)/(2*d)
+    local h=math.sqrt(r0^2-a^2)
+    local x2=x0+a*(x1-x0)/d   
+    local y2=y0+a*(y1-y0)/d   
+    local x3=x2+h*(y1-y0)/d       -- also x3=x2-h*(y1-y0)/d
+    local y3=y2-h*(x1-x0)/d       -- also y3=y2+h*(x1-x0)/d
+
+    return x3, y3
+end
+
