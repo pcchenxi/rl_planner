@@ -125,14 +125,16 @@ class A3CFFSoftmax_laser(chainer.ChainList, a3c.A3CModel):
 class A3CFFSoftmax_basic(chainer.ChainList, a3c.A3CModel):
     """An example of A3C feedforward softmax policy."""
 
-    def __init__(self, ndim_obs, n_actions, hidden_sizes=(200, 200, 100)):
+    def __init__(self, ndim_obs, n_actions, hidden_sizes=(30, 30)):
         self.pi = policies.SoftmaxPolicy(
             model=links.MLP(ndim_obs, n_actions, hidden_sizes = hidden_sizes))
         self.v = links.MLP(ndim_obs, 1, hidden_sizes=hidden_sizes)
         super().__init__(self.pi, self.v)
 
     def pi_and_v(self, state):
-        return self.pi(state), self.v(state)
+        path = state[:, :2]
+        laser = state[:, 2:]
+        return self.pi(path), self.v(path)
 
 
 class A3CFFMellowmax(chainer.ChainList, a3c.A3CModel):
@@ -227,8 +229,8 @@ def main():
     action_space = env_vrep.action_size
     timestep_limit = 200
 
-    # model = A3CFFSoftmax_basic(obs_space, action_space)
-    model = A3CFFSoftmax_laser(obs_space, action_space)
+    model = A3CFFSoftmax_basic(2, action_space)
+    # model = A3CFFSoftmax_laser(obs_space, action_space)
 
     # chainer.serializers.load_npz("../model/k.model", model)
 
