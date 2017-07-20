@@ -2,7 +2,7 @@
 import sys, os, math
 sys.path.append("../v-rep_plugin") 
 import numpy as np
-
+import time
 ## v-rep
 import vrep
 
@@ -62,6 +62,9 @@ class Simu_env:
             print 'Failed connecting to remote API server with port: ', self.port_num
 
         self.clientID = clientID
+        # vrep.simxStopSimulation(clientID, vrep.simx_opmode_oneshot)
+        vrep.simxStartSimulation(clientID, vrep.simx_opmode_oneshot)
+        time.sleep(1)
         # return clientID
 
     def disconnect_vrep(self):

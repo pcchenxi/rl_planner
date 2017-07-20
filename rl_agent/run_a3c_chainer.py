@@ -39,7 +39,7 @@ import env_vrep
 import time
 file_name = time.time()
 
-processor_status = [0, 0, 0, 0]
+processor_status = np.zeros(50)
 
 def save_model(env, agent, global_t):
     if global_t%20 == 0:
@@ -212,10 +212,13 @@ def main():
     args.outdir = experiments.prepare_output_dir(args, args.outdir)
 
     def make_env(process_idx, test):
+        if test:
+            return []
         print ('in make env', process_idx, test)
         # env = gym.make(args.env)
-        env = env_vrep.Simu_env(10000 + process_idx)
+        env = []
         if processor_status[process_idx] == 0:
+            env = env_vrep.Simu_env(20000 + process_idx)
             env.connect_vrep()
             processor_status[process_idx] = 1
         return env
