@@ -232,8 +232,8 @@ def main():
     action_space = env_vrep.action_size
     timestep_limit = 200
 
-    model = A3CFFSoftmax_basic(2, action_space)
-    # model = A3CFFSoftmax_laser(obs_space, action_space)
+    # model = A3CFFSoftmax_basic(2, action_space)
+    model = A3CFFSoftmax_laser(obs_space, action_space)
 
     # chainer.serializers.load_npz("../model/k.model", model)
 
