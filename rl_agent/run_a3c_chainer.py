@@ -22,7 +22,7 @@ import gym
 import gym.wrappers
 import numpy as np
 
-from chainerrl.agents import a3c
+# from chainerrl.agents import a3c
 from chainerrl import experiments
 from chainerrl import links
 from chainerrl import misc
@@ -38,6 +38,7 @@ import env_vrep
 
 import matplotlib.pyplot as plt
 from drawnow import drawnow
+import a3c
 
 import time
 file_name = time.time()
@@ -57,6 +58,11 @@ def save_model(env, agent, global_t):
         chainer.serializers.save_npz("../model/" + str(file_name) + ".model", agent.model)
     # if global_t%400 == 0:
     #     file_name = time.time()
+    if global_t%agent.t_max == 0:
+        y.append(agent.total_loss)
+        x.append(global_t)  # or any arbitrary update to your figure's data
+        drawnow(make_fig)
+
 
 def phi(obs):
     return obs.astype(np.float32)
@@ -246,7 +252,7 @@ def main():
     model = A3CFFSoftmax_basic(2, action_space)
     # model = A3CFFSoftmax_laser(obs_space, action_space)
 
-    chainer.serializers.load_npz("../model/xr.model", model)
+    # chainer.serializers.load_npz("../model/xr.model", model)
 
     opt = rmsprop_async.RMSpropAsync(
         lr=args.lr, eps=args.rmsprop_epsilon, alpha=0.99)
