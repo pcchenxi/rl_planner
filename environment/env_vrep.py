@@ -21,9 +21,9 @@ for a in range(-1, 2):
             # for d in range(-1, 2):
             #     for e in range(-1, 2):
         action = []
-        action.append(a)
-        action.append(b)
         action.append(0)
+        action.append(b)
+        action.append(a)
         action.append(0)
         action.append(0)
         # print action

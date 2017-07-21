@@ -107,10 +107,10 @@ end
 function sample_init()
     -- sample start robot position
     local robot_pos = {}
-    -- robot_pos[1] = math.random() * x_range + x_shift
-    -- robot_pos[2] = math.random() * y_range + y_shift
-    robot_pos[1] = 0
-    robot_pos[2] = 0
+    robot_pos[1] = math.random() * x_range + x_shift
+    robot_pos[2] = math.random() * y_range + y_shift
+    -- robot_pos[1] = 0
+    -- robot_pos[2] = 0
     robot_pos[3] = start_pos[3]
     -- print ('robot location: ', robot_pos[1], robot_pos[2])
 
@@ -119,13 +119,13 @@ function sample_init()
 
     -- sample target position
     local target_pos = {}
-    -- target_pos[1] = math.random() * x_range - x_range/2
-    -- target_pos[2] = math.random() * x_range - x_range/2
+    target_pos[1] = math.random() * x_range - x_range/2
+    target_pos[2] = math.random() * x_range - x_range/2
     -- local dist_to_start = 0.3
     -- target_pos[1] = 0 + robot_pos[1]
     -- target_pos[2] = 0.5 + robot_pos[2]
-    target_pos[1] = 1
-    target_pos[2] = 1
+    -- target_pos[1] = 1
+    -- target_pos[2] = 1
     target_pos[3] = 0
     -- print ('target location: ', target_pos[1], target_pos[2])
 

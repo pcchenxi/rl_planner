@@ -36,10 +36,21 @@ import sys, os
 sys.path.append("../environment") 
 import env_vrep
 
+import matplotlib.pyplot as plt
+from drawnow import drawnow
+
 import time
 file_name = time.time()
-
 processor_status = np.zeros(50)
+
+def make_fig():
+    plt.scatter(x, y)  # I think you meant this
+
+plt.ion()  # enable interactivity
+fig = plt.figure()  # make a figure
+x = list()
+y = list()
+
 
 def save_model(env, agent, global_t):
     if global_t%20 == 0:
@@ -59,7 +70,7 @@ class A3CFFSoftmax_laser(chainer.ChainList, a3c.A3CModel):
             self.conv2 = L.Convolution2D(in_channels=16, out_channels=32, ksize=[1, 4], stride=1, pad=[0, 2])
             self.conv3 = L.Convolution2D(in_channels=32, out_channels=32, ksize=[1, 4], stride=1, pad=[0, 2])
             self.l_path = links.MLP(2, 30, hidden_sizes=(30,30))
-            self.l1=L.Linear(1504, 64)
+            self.l1=L.Linear(5856, 64)
             self.l2=L.Linear(94, 256)
             self.l3=L.Linear(256, 29) #actor
             self.l4=L.Linear(256, 128) # critic
@@ -78,11 +89,11 @@ class A3CFFSoftmax_laser(chainer.ChainList, a3c.A3CModel):
 
         h = F.relu(self.conv1(laser_in))
         # print (h.shape)
-        h = F.max_pooling_2d(h, 2, 2)
+        # h = F.max_pooling_2d(h, 2, 2)
         # print (h.shape)
         h = F.relu(self.conv2(h))
         # print (h.shape)
-        h = F.max_pooling_2d(h, 2, 2)
+        # h = F.max_pooling_2d(h, 2, 2)
         # print (h.shape)
         h = F.relu(self.conv3(h))
         # print (h.shape) 
@@ -232,10 +243,10 @@ def main():
     action_space = env_vrep.action_size
     timestep_limit = 200
 
-    # model = A3CFFSoftmax_basic(2, action_space)
-    model = A3CFFSoftmax_laser(obs_space, action_space)
+    model = A3CFFSoftmax_basic(2, action_space)
+    # model = A3CFFSoftmax_laser(obs_space, action_space)
 
-    # chainer.serializers.load_npz("../model/k.model", model)
+    chainer.serializers.load_npz("../model/xr.model", model)
 
     opt = rmsprop_async.RMSpropAsync(
         lr=args.lr, eps=args.rmsprop_epsilon, alpha=0.99)
