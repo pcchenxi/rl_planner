@@ -36,7 +36,6 @@ import sys, os
 sys.path.append("../environment") 
 import env_vrep
 import a3c
-import simplejson
 import time
 file_name = time.time()
 processor_status = np.zeros(50)

@@ -119,7 +119,6 @@ class Simu_env:
         return state
 
     def step(self, action):
-        # print type(action)
         if isinstance(action, np.int32) or isinstance(action, int):
             action = action_list[action]
 
