@@ -35,34 +35,24 @@ from chainerrl import v_function
 import sys, os
 sys.path.append("../environment") 
 import env_vrep
-
-import matplotlib.pyplot as plt
-from drawnow import drawnow
 import a3c
-
+import simplejson
 import time
 file_name = time.time()
 processor_status = np.zeros(50)
 
-def make_fig():
-    plt.scatter(x, y)  # I think you meant this
-
-plt.ion()  # enable interactivity
-fig = plt.figure()  # make a figure
-x = list()
-y = list()
-
+f = open("../data/hist.txt", "w") 
+f.close()
 
 def save_model(env, agent, global_t):
     if global_t%20 == 0:
         chainer.serializers.save_npz("../model/" + str(file_name) + ".model", agent.model)
     # if global_t%400 == 0:
     #     file_name = time.time()
-    if global_t%agent.t_max == 0:
-        y.append(agent.total_loss)
-        x.append(global_t)  # or any arbitrary update to your figure's data
-        drawnow(make_fig)
-
+    if global_t%agent.t_max == 0 and global_t > 50:
+        f = open("../data/hist.txt", "a") 
+        f.write("%s %s %s %s\n" % (global_t, agent.pi_loss[0], agent.v_loss[0][0], agent.total_loss[0]))
+        f.close()
 
 def phi(obs):
     return obs.astype(np.float32)
