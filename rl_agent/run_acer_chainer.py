@@ -168,7 +168,7 @@ def main():
     parser.add_argument('--trust-region-delta', type=float, default=0.1)
     args = parser.parse_args()
 
-    logging.getLogger().setLevel(args.logger_level)
+    # logging.getLogger().setLevel(args.logger_level)
 
     if args.seed is not None:
         misc.set_random_seed(args.seed)
@@ -200,21 +200,21 @@ def main():
     v = v_functions.FCVFunction( obs_space,n_hidden_channels=args.n_hidden_channels,n_hidden_layers=args.n_hidden_layers)
     adv = q_functions.FCSAQFunction(obs_space, action_space,n_hidden_channels=args.n_hidden_channels, n_hidden_layers=args.n_hidden_layers)
 
-    model = acer.ACERSDNSeparateModel(pi, v, adv)
-    # model = acer.ACERSeparateModel(
-    #     pi=links.Sequence(
-    #         L.Linear(obs_space, args.n_hidden_channels),
-    #         F.relu,
-    #         L.Linear(args.n_hidden_channels, action_space,
-    #                     initialW=LeCunNormal(1e-3)),
-    #         SoftmaxDistribution),
-    #     q=links.Sequence(
-    #         L.Linear(obs_space, args.n_hidden_channels),
-    #         F.relu,
-    #         L.Linear(args.n_hidden_channels, action_space,
-    #                     initialW=LeCunNormal(1e-3)),
-    #         DiscreteActionValue),
-    # )
+    # model = acer.ACERSDNSeparateModel(pi, v, adv)
+    model = acer.ACERSeparateModel(
+        pi=links.Sequence(
+            L.Linear(obs_space, args.n_hidden_channels),
+            F.relu,
+            L.Linear(args.n_hidden_channels, action_space,
+                        initialW=LeCunNormal(1e-3)),
+            SoftmaxDistribution),
+        q=links.Sequence(
+            L.Linear(obs_space, args.n_hidden_channels),
+            F.relu,
+            L.Linear(args.n_hidden_channels, action_space,
+                        initialW=LeCunNormal(1e-3)),
+            DiscreteActionValue),
+    )
 
     opt = rmsprop_async.RMSpropAsync(
         lr=args.lr, eps=args.rmsprop_epsilon, alpha=0.99)

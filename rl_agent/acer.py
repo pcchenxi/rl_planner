@@ -632,9 +632,9 @@ class ACER(agent.AttributeSavingMixin, agent.AsyncAgent):
 
         self.t += 1
 
-        # if self.process_idx == 0:
-        #     print('t:%s r:%s a:%s action_distrib:%s',
-        #                       self.t, reward, action, action_distrib)
+        if self.process_idx == 0:
+            print('t:%s r:%s a:%s action_distrib:%s',
+                              self.t, reward, action, action_distrib)
 
         # Update stats
         self.average_value += (
