@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 import sys, os, math
-sys.path.append("../v-rep_plugin") 
+sys.path.append("../../v-rep_plugin") 
 import numpy as np
 import time
 ## v-rep
@@ -21,9 +21,9 @@ for a in range(-1, 2):
             # for d in range(-1, 2):
             #     for e in range(-1, 2):
         action = []
-        action.append(0)
-        action.append(b)
         action.append(a)
+        action.append(b)
+        action.append(0)
         action.append(0)
         action.append(0)
         # print action
@@ -47,6 +47,7 @@ class Simu_env:
         self.path_used = 1
         self.state_size = state_size
         self.action_size = action_size
+        self.step_inep = 0
         # self.geometry('{0}x{1}'.format(MAZE_H * UNIT, MAZE_H * UNIT))
         # self.clientID = self._connect_vrep(port_num)
         
@@ -65,11 +66,12 @@ class Simu_env:
         vrep.simxStopSimulation(clientID, vrep.simx_opmode_oneshot)
         time.sleep(2)
         vrep.simxStartSimulation(clientID, vrep.simx_opmode_oneshot)
-        time.sleep(3)
+        time.sleep(2)
         # return clientID
 
     def disconnect_vrep(self):
         vrep.simxStopSimulation(self.clientID, vrep.simx_opmode_oneshot)
+        time.sleep(1)
         vrep.simxFinish(self.clientID)
         print ('Program ended')
 
@@ -85,7 +87,6 @@ class Simu_env:
                     function_name, inputInts, inputFloats, inputStrings,inputBuffer, vrep.simx_opmode_blocking)
 
         # print 'function call: ', self.clientID
-
         return res, retInts, retFloats, retStrings, retBuffer
         
     def get_laser_points(self):
@@ -105,26 +106,30 @@ class Simu_env:
 
 
     def convert_state(self, laser_points, current_pose, path):
-        path = np.asarray(path)
-        laser_points = np.asarray(laser_points)
-        state = np.append(path, laser_points)
+        # path = np.asarray(path)
+        # laser_points = np.asarray(laser_points)
+        # state = np.append(path, laser_points)
 
-        # state = np.asarray(path)
-        # state = state.flatten()
+        state = np.asarray(path)
+        state = state.flatten()
         return state
 
         
     def reset(self):
+        # print ('reset')
+        self.step_inep = 0
+        time.sleep(1)
         self.reached_index = -1
         res,retInts,retFloats,retStrings,retBuffer = self.call_sim_function('rwRobot', 'reset')
         state, reward, is_finish, info = self.step([0,0,0,0,0])
-        time.sleep(2)
+        # time.sleep(2)
         return state
 
     def step(self, action):
+        self.step_inep += 1
         if isinstance(action, np.int32) or isinstance(action, int):
             action = action_list[action]
-
+        # print ('step', action)
         res, retInts, current_pose, retStrings, found_pose = self.call_sim_function('rwRobot', 'step', action)
 
         laser_points = self.get_laser_points()
@@ -170,6 +175,10 @@ class Simu_env:
         if found_pose == 'f':       # when collision or no pose can be found
             # is_finish = True  
             reward = -5
+
+        if self.step_inep > 200:
+            is_finish = True 
+            reward = -1
 
         reward -= 1
 

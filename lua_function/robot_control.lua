@@ -36,7 +36,7 @@ function do_action(robot_hd, joint_hds, action)
     sample_ori[3] = current_ori[3] + dw*action[3] 
     sample_ori[4] = current_ori[4]
 
-    print (sample_ori[3])
+    -- print (sample_ori[3])
     simSetObjectPosition(robot_hd,robot_hd,sample_pose)
     simSetObjectQuaternion(robot_hd,-1,sample_ori)
 
@@ -84,7 +84,7 @@ function do_action(robot_hd, joint_hds, action)
         simSetJointPosition(leg_joints[2], angle_thigh)
         simSetJointPosition(leg_joints[3], angle_knee-angle_thigh)
 
-        print (i, angle_thigh, angle_knee-angle_thigh)
+        -- print (i, angle_thigh, angle_knee-angle_thigh)
         -- local real_foot_pos = 
     end
 

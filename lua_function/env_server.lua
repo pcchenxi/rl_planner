@@ -28,7 +28,7 @@ function get_global_path(inInts,inFloats,inStrings,inBuffer)
     -- return {},{},{},'f'
     path_in_robot_frame = transform_path_to_robotf(path_dummy_list, robot_hd)
 
-    print(#path_in_robot_frame)
+    -- print(#path_in_robot_frame)
     return {}, path_in_robot_frame, {}, ''
 
 end
