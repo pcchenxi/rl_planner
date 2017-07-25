@@ -50,8 +50,8 @@ class Application(object):
     trainer.set_start_time(self.start_time)
   
     while True:
-      if self.stop_requested:
-        break
+      # if self.stop_requested:
+      #   break
       if self.terminate_reqested:
         trainer.stop()
         break
@@ -134,6 +134,7 @@ class Application(object):
     config.gpu_options.allow_growth = True
     self.sess = tf.Session(config=config)
     
+    COORD = tf.train.Coordinator()
     self.sess.run(tf.global_variables_initializer())
     
     # summary for tensorboard
@@ -168,17 +169,19 @@ class Application(object):
       self.next_save_steps = flags.save_interval_step
   
     # run training threads
-    self.train_threads = []
-    for i in range(flags.parallel_size):
-      self.train_threads.append(threading.Thread(target=self.train_function, args=(i,True)))
-      
-    signal.signal(signal.SIGINT, self.signal_handler)
-  
     # set start time
     self.start_time = time.time() - self.wall_t
-  
-    for t in self.train_threads:
+    self.train_threads = []
+    for i in range(flags.parallel_size):
+      t = threading.Thread(target=self.train_function, args=(i,True))
       t.start()
+      self.train_threads.append(t)
+      
+    signal.signal(signal.SIGINT, self.signal_handler)
+    COORD.join(self.train_threads)
+  
+    # for t in self.train_threads:
+    #   t.start()
   
     print('Press Ctrl+C to stop')
     signal.pause()
@@ -189,10 +192,10 @@ class Application(object):
     """
     self.stop_requested = True
   
-    # Wait for all other threads to stop
-    for (i, t) in enumerate(self.train_threads):
-      if i != 0:
-        t.join()
+    # # Wait for all other threads to stop
+    # for (i, t) in enumerate(self.train_threads):
+    #   if i != 0:
+    #     t.join()
   
     # Save
     if not os.path.exists(flags.checkpoint_dir):
@@ -222,13 +225,13 @@ class Application(object):
     self.stop_requested = False
     self.next_save_steps += flags.save_interval_step
   
-    # Restart other threads
-    for i in range(flags.parallel_size):
-      if i != 0:
-        thread = threading.Thread(target=self.train_function, args=(i,False))
-        thread.daemon = True
-        # self.train_threads[i] = thread
-        thread.start()
+    # # Restart other threads
+    # for i in range(flags.parallel_size):
+    #   if i != 0:
+    #     thread = threading.Thread(target=self.train_function, args=(i,False))
+    #     thread.daemon = True
+    #     # self.train_threads[i] = thread
+    #     thread.start()
     
   def signal_handler(self, signal, frame):
     print('You pressed Ctrl+C!')

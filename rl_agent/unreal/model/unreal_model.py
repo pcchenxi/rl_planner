@@ -80,47 +80,75 @@ class UnrealModel(object):
 
     def _create_base_network(self):
         # State (Base image input)
-        self.base_input = tf.placeholder("float", [None, 2])
+        self.base_input = tf.placeholder("float", [None, 182])
 
         # Last action and reward
         self.base_last_action_reward_input = tf.placeholder("float", [None, self._action_size+1])
         
         # feature extration layers
-        self.base_feature_output = self._base_fc_layers(self.base_input)
+        # self.base_path_feature_output = self._base_fc_layers(self.
+        self.base_feature_output = self._base_feature_layers(self.base_input)
 
         self.base_pi = self._base_policy_layer(self.base_feature_output) # policy output
         self.base_v  = self._base_value_layer(self.base_feature_output)  # value output
 
-    def _base_conv_layers(self, state_input, reuse=False):
+    def _base_feature_layers(self, state_input, reuse=False):
         with tf.variable_scope("base_conv", reuse=reuse) as scope:
-            # Weights
-            W_conv1, b_conv1 = self._conv_variable([8, 8, 3, 16],  "base_conv1")
-            W_conv2, b_conv2 = self._conv_variable([4, 4, 16, 32], "base_conv2")
+            self.path = tf.slice(state_input, [0, 0], [1, 2])
+            self.laser = tf.slice(state_input, [0, 2], [1, 180])
+            laser_reshape = tf.reshape(self.laser, [-1, 180, 1])
+            conv1 = tf.layers.conv1d(   inputs=laser_reshape,
+                                        filters=16,
+                                        kernel_size=8,
+                                        padding="same",
+                                        activation=tf.nn.relu,
+                                        name="conv1")
 
-            # Nodes
-            h_conv1 = tf.nn.relu(self._conv2d(state_input, W_conv1, 4) + b_conv1) # stride=4
-            h_conv2 = tf.nn.relu(self._conv2d(h_conv1,     W_conv2, 2) + b_conv2) # stride=2
-            return h_conv2
-    
+            conv2 = tf.layers.conv1d(   inputs=conv1,
+                                        filters=32,
+                                        kernel_size=4,
+                                        padding="same",
+                                        activation=tf.nn.relu,
+                                        name="conv2")
+            conv_flat = tf.reshape(conv2, [-1, 1 * 180 * 32])
+            path_flat = tf.reshape(self.path, [-1, 2])
+            fc1 = tf.layers.dense(inputs=path_flat, units=64, activation=tf.nn.relu)
+
+            feature = tf.concat([conv_flat, fc1], 1)
+            return (feature)
+
+    def run_path_laser(self, sess, s_t):
+        # This run_base_policy_and_value() is used when forward propagating.
+        # so the step size is 1.
+        # sess.run( [self.path_laser], feed_dict = {self.base_input : [s_t]})
+        # pi_out: (1,3), v_out: (1)
+        print(sess.run( [self.path_laser], feed_dict = {self.base_input : [s_t]}))
+        result = sess.run( [self.path_laser], feed_dict = {self.base_input : [s_t]})
+        # print ((result[0][0].shape), (result[0][1].shape))
+        # return path, laser
+
     def _base_fc_layers(self, state_input, reuse=False):
         with tf.variable_scope("base_fc", reuse=reuse) as scope:
             # Weights
-            W_fc1, b_fc1 = self._fc_variable([2, 30], "base_fc1")
-            W_fc2, b_fc2 = self._fc_variable([30, 30], "base_fc2")
+            size = 1 * 180 * 32 + 64
+            W_fc1, b_fc1 = self._fc_variable([size, 128], "base_fc1")
+            # W_fc2, b_fc2 = self._fc_variable([64, 64], "base_fc2")
 
             # Nodes
-            state_flat = tf.reshape(state_input, [-1, 2])
+            state_flat = tf.reshape(state_input, [-1, size])
 
             h_fc1 = tf.nn.relu(tf.matmul(state_flat, W_fc1) + b_fc1)
-            h_fc2 = tf.nn.relu(tf.matmul(h_fc1, W_fc2) + b_fc2)
-            return h_fc2
+            # h_fc2 = tf.nn.relu(tf.matmul(h_fc1, W_fc2) + b_fc2)
+            return h_fc1
 
 
     def _base_policy_layer(self, feature_outputs, reuse=False):
         with tf.variable_scope("base_policy", reuse=reuse) as scope:
             # Weight for policy output layer
-            W_fc_p, b_fc_p = self._fc_variable([30, self._action_size], "base_fc_p")
+            size = 1 * 180 * 32 + 64
+            W_fc_p, b_fc_p = self._fc_variable([size, self._action_size], "base_fc_p")
             # Policy (output)
+
             base_pi = tf.nn.softmax(tf.matmul(feature_outputs, W_fc_p) + b_fc_p)
             return base_pi
 
@@ -128,7 +156,8 @@ class UnrealModel(object):
     def _base_value_layer(self, feature_outputs, reuse=False):
         with tf.variable_scope("base_value", reuse=reuse) as scope:
             # Weight for value output layer
-            W_fc_v, b_fc_v = self._fc_variable([30, 1], "base_fc_v")
+            size = 1 * 180 * 32 + 64
+            W_fc_v, b_fc_v = self._fc_variable([size, 1], "base_fc_v")
             
             # Value (output)
             v_ = tf.matmul(feature_outputs, W_fc_v) + b_fc_v
@@ -157,44 +186,6 @@ class UnrealModel(object):
         
     #     self.pc_q, self.pc_q_max = self._pc_deconv_layers(pc_lstm_outputs)
 
-    
-    # def _create_pc_network_for_display(self):
-    #     self.pc_q_disp, self.pc_q_max_disp = self._pc_deconv_layers(self.base_lstm_outputs, reuse=True)
-    
-  
-    # def _pc_deconv_layers(self, lstm_outputs, reuse=False):
-    #     with tf.variable_scope("pc_deconv", reuse=reuse) as scope:    
-    #         # (Spatial map was written as 7x7x32, but here 9x9x32 is used to get 20x20 deconv result?)
-    #         # State (image input for pixel change)
-    #         W_pc_fc1, b_pc_fc1 = self._fc_variable([256, 9*9*32], "pc_fc1")
-                
-    #         W_pc_deconv_v, b_pc_deconv_v = self._conv_variable([4, 4, 1, 32],
-    #                                                             "pc_deconv_v", deconv=True)
-    #         W_pc_deconv_a, b_pc_deconv_a = self._conv_variable([4, 4, self._action_size, 32],
-    #                                                             "pc_deconv_a", deconv=True)
-            
-    #         h_pc_fc1 = tf.nn.relu(tf.matmul(lstm_outputs, W_pc_fc1) + b_pc_fc1)
-    #         h_pc_fc1_reshaped = tf.reshape(h_pc_fc1, [-1,9,9,32])
-    #         # Dueling network for V and Advantage
-    #         h_pc_deconv_v = tf.nn.relu(self._deconv2d(h_pc_fc1_reshaped,
-    #                                                     W_pc_deconv_v, 9, 9, 2) +
-    #                                     b_pc_deconv_v)
-    #         h_pc_deconv_a = tf.nn.relu(self._deconv2d(h_pc_fc1_reshaped,
-    #                                                     W_pc_deconv_a, 9, 9, 2) +
-    #                                     b_pc_deconv_a)
-    #         # Advantage mean
-    #         h_pc_deconv_a_mean = tf.reduce_mean(h_pc_deconv_a, reduction_indices=3, keep_dims=True)
-
-    #         # {Pixel change Q (output)
-    #         pc_q = h_pc_deconv_v + h_pc_deconv_a - h_pc_deconv_a_mean
-    #         #(-1, 20, 20, action_size)
-
-    #         # Max Q
-    #         pc_q_max = tf.reduce_max(pc_q, reduction_indices=3, keep_dims=False)
-    #         #(-1, 20, 20)
-
-    #         return pc_q, pc_q_max
-        
 
     # def _create_vr_network(self):
     #     # State (Image input)

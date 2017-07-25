@@ -15,14 +15,15 @@ collision_hd_1 = simGetCollectionHandle('robot_body')
 collision_hd_2 = simGetCollectionHandle('obstacle_all')
 
 
-function do_action(robot_hd, joint_hds, action)
+function do_action(robot_hd, joint_hds, action, start_joints)
     if(#action == 1) then
         action = action_list[action[1]]
     end
 
     local current_pos=simGetObjectPosition(robot_hd,-1)
     local current_ori=simGetObjectQuaternion(robot_hd,-1)
-    local current_joints = get_joint_positions(joint_hds)
+    -- local current_joints = get_joint_positions(joint_hds)
+    current_joints = start_joints
     local h, l = get_current_pose(robot_hd, joint_hds)
 
     local sample_pose = {}

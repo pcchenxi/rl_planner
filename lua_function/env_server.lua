@@ -15,19 +15,28 @@ end
 
 function step(inInts,inFloats,inStrings,inBuffer)
     -- print (#inFloats)
-    robot_state, res = do_action(robot_hd, joint_hds, inFloats)
+    robot_state, res = do_action(robot_hd, joint_hds, inFloats, start_joints)
     return {}, robot_state, {}, res
 end
 
 
 function get_global_path(inInts,inFloats,inStrings,inBuffer)
-    -- forbidThreadSwitches(true)
-    -- local isvalid = stateValidation(inFloats)
-    -- forbidThreadSwitches(false)
-
     -- return {},{},{},'f'
     path_in_robot_frame = transform_path_to_robotf(path_dummy_list, robot_hd)
 
+    -- path_in_robot_frame = {}
+    -- local d_hd = target_hd
+    -- local d_pos = simGetObjectPosition(d_hd, robot_hd)
+
+    -- -- local dist = math.sqrt(d_pos[1]*d_pos[1] + d_pos[2]*d_pos[2])
+    -- -- local angle_thigh = math.atan(d_pos[2]/d_pos[1])
+
+    -- -- path_in_robotf[#path_in_robotf + 1] = dist
+    -- -- path_in_robotf[#path_in_robotf + 1] = angle_thigh
+    -- path_in_robot_frame[#path_in_robot_frame + 1] = d_pos[1]
+    -- path_in_robot_frame[#path_in_robot_frame + 1] = d_pos[2]
+
+    print('path length: '..#path_in_robot_frame)
     -- print(#path_in_robot_frame)
     return {}, path_in_robot_frame, {}, ''
 
@@ -107,10 +116,10 @@ end
 function sample_init()
     -- sample start robot position
     local robot_pos = {}
-    robot_pos[1] = math.random() * x_range + x_shift
-    robot_pos[2] = math.random() * y_range + y_shift
-    -- robot_pos[1] = 0
-    -- robot_pos[2] = 0
+    -- robot_pos[1] = math.random() * x_range + x_shift
+    -- robot_pos[2] = math.random() * y_range + y_shift
+    robot_pos[1] = 0
+    robot_pos[2] = 0
     robot_pos[3] = start_pos[3]
     -- print ('robot location: ', robot_pos[1], robot_pos[2])
 
@@ -119,13 +128,13 @@ function sample_init()
 
     -- sample target position
     local target_pos = {}
-    target_pos[1] = math.random() * x_range - x_range/2
-    target_pos[2] = math.random() * x_range - x_range/2
+    -- target_pos[1] = math.random() * x_range - x_range/2
+    -- target_pos[2] = math.random() * x_range - x_range/2
     -- local dist_to_start = 0.3
     -- target_pos[1] = 0 + robot_pos[1]
     -- target_pos[2] = 0.5 + robot_pos[2]
-    -- target_pos[1] = 1
-    -- target_pos[2] = 1
+    target_pos[1] = 1
+    target_pos[2] = 1
     target_pos[3] = 0
     -- print ('target location: ', target_pos[1], target_pos[2])
 

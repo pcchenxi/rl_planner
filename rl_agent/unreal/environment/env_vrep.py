@@ -95,10 +95,14 @@ class Simu_env:
 
     def get_global_path(self):
         res,retInts, path_raw, retStrings, retBuffer = self.call_sim_function('rwRobot', 'get_global_path')
+
+        if len(path_raw) < 2 :
+            print (path_raw)
+            
         path_dist = []
         path_angle = []
 
-        for i in range(2, len(path_raw), 2):       
+        for i in range(0, len(path_raw), 2):       
             path_dist.append(path_raw[i])
             path_angle.append(path_raw[i+1])
         
@@ -106,12 +110,12 @@ class Simu_env:
 
 
     def convert_state(self, laser_points, current_pose, path):
-        # path = np.asarray(path)
-        # laser_points = np.asarray(laser_points)
-        # state = np.append(path, laser_points)
+        path = np.asarray(path)
+        laser_points = np.asarray(laser_points)
+        state = np.append(path, laser_points)
 
-        state = np.asarray(path)
-        state = state.flatten()
+        # state = np.asarray(path)
+        # state = state.flatten()
         return state
 
         
@@ -135,6 +139,9 @@ class Simu_env:
         laser_points = self.get_laser_points()
         path_x, path_y = self.get_global_path()  # the target position is located at the end of the list
         
+        if len(path_x) < 1 or len(path_y) < 1:
+            print ('bad path length')
+            return [0,0], 0, False, 'f'
 
         #compute reward and is_finish
         ########################################################################################################################################
@@ -160,7 +167,7 @@ class Simu_env:
         if dist < self.dist_pre:  # when closer to target
             reward = 1
         else:
-            reward = -1
+            reward = -2
 
         self.dist_pre = dist
 
@@ -168,18 +175,17 @@ class Simu_env:
             is_finish = True
             reward = 5
 
-        if dist > 5:                # when too far away to the target
+        if dist > 3:                # when too far away to the target
             is_finish = True
-            reward = -1
+            reward = -5
 
         if found_pose == 'f':       # when collision or no pose can be found
             # is_finish = True  
-            reward = -5
+            reward = -10
 
         if self.step_inep > 200:
             is_finish = True 
-            reward = -1
+            reward = -2
 
-        reward -= 1
 
         return reward, is_finish

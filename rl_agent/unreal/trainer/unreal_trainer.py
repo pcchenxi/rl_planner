@@ -108,6 +108,7 @@ class Trainer(object):
     """
     Fill experience buffer until buffer is full.
     """
+    # print ('fill exp')
     prev_state = self.environment.last_state
     last_action = self.environment.last_action
     last_reward = self.environment.last_reward
@@ -115,12 +116,17 @@ class Trainer(object):
                                                                   self.action_size,
                                                                   last_reward)
     
+    # print('testing!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!')
+    # self.local_network.run_path_laser(sess,self.environment.last_state)
+
     pi_, _ = self.local_network.run_base_policy_and_value(sess,
                                                           self.environment.last_state,
                                                           last_action_reward)
     action = self.choose_action(pi_)
     
-    new_state, reward, terminal = self.environment.process(action)
+    new_state, reward, terminal, info = self.environment.process(action)
+    if info == 'f':
+        return
     
     frame = ExperienceFrame(prev_state, reward, action, terminal,
                             last_action, last_reward)
@@ -183,7 +189,10 @@ class Trainer(object):
       prev_state = self.environment.last_state
 
       # Process game
-      new_state, reward, terminal = self.environment.process(action)
+      new_state, reward, terminal, info = self.environment.process(action)
+      if info == 'f':
+        continue;
+
       frame = ExperienceFrame(prev_state, reward, action, terminal,
                               last_action, last_reward)
 
@@ -199,7 +208,7 @@ class Trainer(object):
 
       if terminal:
         terminal_end = True
-        print("score={:f}".format(self.episode_reward))
+        print("thread {} score={:f}".format(self.thread_index, self.episode_reward))
 
         self._record_score(sess, summary_writer, summary_op, score_input,
                            self.episode_reward, global_t)
