@@ -70,7 +70,9 @@ class Trainer(object):
     self.experience = Experience(self.experience_history_size)
     self.local_t = 0
     self.initial_learning_rate = initial_learning_rate
-    self.episode_reward = 0
+    self.episode_reward = 0.0
+    self.episode_step = 0.0
+
     # For log output
     self.prev_local_t = 0
 
@@ -93,9 +95,9 @@ class Trainer(object):
     return np.random.choice(range(len(pi_values)), p=pi_values)
 
   
-  def _record_score(self, sess, summary_writer, summary_op, score_input, score, global_t):
+  def _record_score(self, sess, score_input, summary_op_score, summary_writer, score, global_t):
     print ('update tensorboard')
-    summary_str = sess.run(summary_op, feed_dict={score_input: score})
+    summary_str = sess.run(summary_op_score, feed_dict={score_input: score})
     summary_writer.add_summary(summary_str, global_t)
     summary_writer.flush()
 
@@ -120,15 +122,14 @@ class Trainer(object):
     # self.local_network.run_path_laser(sess,self.environment.last_state)
 
     pi_, _ = self.local_network.run_base_policy_and_value(sess,
-                                                          self.environment.last_state,
-                                                          last_action_reward)
+                                                          self.environment.last_state)
     action = self.choose_action(pi_)
     
     new_state, reward, terminal, info = self.environment.process(action)
     if info == 'f':
         return
     
-    frame = ExperienceFrame(prev_state, reward, action, terminal,
+    frame = ExperienceFrame(prev_state, reward, action, terminal, new_state, 
                             last_action, last_reward)
     self.experience.add_frame(frame)
     # print ('FILL EXP  thread: ', self.thread_index, 'experience size: ', len(self.experience._frames))
@@ -149,7 +150,7 @@ class Trainer(object):
         global_t,  elapsed_time, steps_per_sec, steps_per_sec * 3600 / 1000000.))
     
 
-  def _process_base(self, sess, global_t, summary_writer, summary_op, score_input):
+  def _process_base(self, sess, global_t, score_input, summary_op_score, summary_writer):
     # [Base A3C]
     states = []
     last_action_rewards = []
@@ -171,8 +172,7 @@ class Trainer(object):
                                                                     last_reward)
       
       pi_, value_ = self.local_network.run_base_policy_and_value(sess,
-                                                                 self.environment.last_state,
-                                                                 last_action_reward)
+                                                                 self.environment.last_state)
       
       
       action = self.choose_action(pi_)
@@ -193,7 +193,7 @@ class Trainer(object):
       if info == 'f':
         continue;
 
-      frame = ExperienceFrame(prev_state, reward, action, terminal,
+      frame = ExperienceFrame(prev_state, reward, action, terminal, new_state, 
                               last_action, last_reward)
 
       # Store to experience
@@ -201,6 +201,7 @@ class Trainer(object):
       # print ('PROCESS BASE thread: ', self.thread_index, action, 'experience size: ', len(self.experience._frames))
 
       self.episode_reward += reward
+      self.episode_step += 1.0
 
       rewards.append( reward )
 
@@ -210,10 +211,10 @@ class Trainer(object):
         terminal_end = True
         print("thread {} score={:f}".format(self.thread_index, self.episode_reward))
 
-        self._record_score(sess, summary_writer, summary_op, score_input,
-                           self.episode_reward, global_t)
+        self._record_score(sess, score_input, summary_op_score, summary_writer, self.episode_reward, global_t)
           
-        self.episode_reward = 0
+        self.episode_reward = 0.0
+        self.episode_step = 0.0
         self.environment.reset()
         # self.local_network.reset_state()
         break
@@ -303,8 +304,7 @@ class Trainer(object):
     vr_R = 0.0
     if not vr_experience_frames[0].terminal:
       vr_R = self.local_network.run_vr_value(sess,
-                                             vr_experience_frames[0].state,
-                                             vr_experience_frames[0].get_last_action_reward(self.action_size))
+                                             vr_experience_frames[0].state)
     
     # t_max times loop
     for frame in vr_experience_frames[1:]:
@@ -323,29 +323,33 @@ class Trainer(object):
   
   def _process_rp(self):
     # [Reward prediction]
-    rp_experience_frames = self.experience.sample_rp_sequence()
+    # rp_experience_frames = self.experience.sample_rp_sequence()
+    rp_experience_frames = self.experience.sample_sequence(self.local_t_max+1)
+
     # 4 frames
 
     batch_rp_si = []
-    batch_rp_c = []
+    batch_rp_action = []
+    batch_rp_reward = []
     
-    for i in range(3):
-      batch_rp_si.append(rp_experience_frames[i].state)
-
-    # one hot vector for target reward
-    r = rp_experience_frames[3].reward
-    rp_c = [0.0, 0.0, 0.0]
-    if r == 0:
-      rp_c[0] = 1.0 # zero
-    elif r > 0:
-      rp_c[1] = 1.0 # positive
-    else:
-      rp_c[2] = 1.0 # negative
-    batch_rp_c.append(rp_c)
-    return batch_rp_si, batch_rp_c
+    for frame in rp_experience_frames[1:]:
+        batch_rp_action.append ([frame.action])
+        batch_rp_si.append(frame.state)
+        rp_c = [0.0, 0.0, 0.0]
+        if frame.reward < -4:
+              rp_c[0] = 1
+        elif frame.reward < -1:
+              rp_c[1] = 1
+        else:
+              rp_c[2] = 1
+        batch_rp_reward.append(rp_c)
+   
+    return batch_rp_si, batch_rp_action, batch_rp_reward
   
   
-  def process(self, sess, global_t, summary_writer, summary_op, score_input):
+  def process(self, sess, global_t, 
+              score_input, vr_loss_input, rp_loss_input, 
+              summary_writer, summary_op_score, summary_op_loss):
     # Fill experience replay buffer
     if not self.experience.is_full():
       self._fill_experience(sess)
@@ -362,15 +366,13 @@ class Trainer(object):
     batch_si, batch_last_action_rewards, batch_a, batch_adv, batch_R = \
           self._process_base(sess,
                              global_t,
-                             summary_writer,
-                             summary_op,
-                             score_input)
+                             score_input, summary_op_score,
+                             summary_writer)
     feed_dict = {
       self.local_network.base_input: batch_si,
-      self.local_network.base_last_action_reward_input: batch_last_action_rewards,
       self.local_network.base_a: batch_a,
       self.local_network.base_adv: batch_adv,
-      self.local_network.base_r: batch_R,
+      self.local_network.base_r: batch_R,  # true return
       # self.local_network.base_initial_lstm_state: start_lstm_state,
       # [common]
       self.learning_rate_input: cur_learning_rate
@@ -382,7 +384,6 @@ class Trainer(object):
 
       pc_feed_dict = {
         self.local_network.pc_input: batch_pc_si,
-        self.local_network.pc_last_action_reward_input: batch_pc_last_action_reward,
         self.local_network.pc_a: batch_pc_a,
         self.local_network.pc_r: batch_pc_R
       }
@@ -394,25 +395,37 @@ class Trainer(object):
       
       vr_feed_dict = {
         self.local_network.vr_input: batch_vr_si,
-        self.local_network.vr_last_action_reward_input : batch_vr_last_action_reward,
-        self.local_network.vr_r: batch_vr_R
+        self.local_network.vr_r: batch_vr_R  # predicted return using the network
       }
       feed_dict.update(vr_feed_dict)
 
     # [Reward prediction]
     if self.use_reward_prediction:
-      batch_rp_si, batch_rp_c = self._process_rp()
+      batch_rp_si, batch_rp_action, batch_rp_reward = self._process_rp()
+
       rp_feed_dict = {
         self.local_network.rp_input: batch_rp_si,
-        self.local_network.rp_c_target: batch_rp_c
+        self.local_network.rp_action: batch_rp_action,
+        self.local_network.rp_reward: batch_rp_reward
       }
       feed_dict.update(rp_feed_dict)
 
     # Calculate gradients and copy them to global netowrk.
-    sess.run( self.apply_gradients, feed_dict=feed_dict )
+    base_loss, vr_loss, rp_loss, _ = sess.run([self.local_network.base_loss, 
+                                              self.local_network.vr_loss, 
+                                              self.local_network.rp_loss, 
+                                              self.apply_gradients], feed_dict=feed_dict )
+    # vr_loss = sess.run([self.local_network.vr_loss], feed_dict=feed_dict )
+
+    # rp_loss = sess.run([self.local_network.rp_loss], feed_dict=feed_dict )
     
     self._print_log(global_t)
     
+    # print ('update')
+    summary_str = sess.run(summary_op_loss, feed_dict={vr_loss_input: vr_loss, rp_loss_input : rp_loss})
+    summary_writer.add_summary(summary_str, global_t)
+    summary_writer.flush()
+
     # Return advanced local step size
     diff_local_t = self.local_t - start_local_t
     return diff_local_t

@@ -9,7 +9,9 @@ require("robot_control")
 -------- remote functions ---------------------
 function reset(inInts,inFloats,inStrings,inBuffer)
     -- print (#inFloats)
-    init()
+    local same_ep = inFloats[1]
+    print (same_ep)
+    init(same_ep)
     return {}, {}, {}, ''
 end
 
@@ -36,7 +38,7 @@ function get_global_path(inInts,inFloats,inStrings,inBuffer)
     -- path_in_robot_frame[#path_in_robot_frame + 1] = d_pos[1]
     -- path_in_robot_frame[#path_in_robot_frame + 1] = d_pos[2]
 
-    print('path length: '..#path_in_robot_frame)
+    -- print('path length: '..#path_in_robot_frame)
     -- print(#path_in_robot_frame)
     return {}, path_in_robot_frame, {}, ''
 
@@ -113,28 +115,47 @@ function transform_path_to_robotf(path_d_list, robot_hd)
     return path_in_robotf
 end
 
-function sample_init()
+function sample_init(same_ep)
+    if same_ep == 1 then
+        simSetObjectPosition(robot_hd,-1,pre_pos)
+        simSetObjectPosition(fake_robot_hd,-1,pre_pos)
+
+        simSetObjectQuaternion(robot_hd,-1,pre_ori)
+        simSetObjectQuaternion(fake_robot_hd,-1,pre_ori)
+
+        set_joint_positions(joint_hds, start_joints)
+        simSetObjectPosition(target_hd,-1,pre_tar_pose)
+        print('same ep!')
+        return 0
+    end
     -- sample start robot position
+    local dist_to_start = 0.2
+    local x_r = x_range*scale
+    local y_r = y_range*scale
+    local x_sh = -x_r/2
+    local y_sh = -y_r/2
+
     local robot_pos = {}
     -- robot_pos[1] = math.random() * x_range + x_shift
     -- robot_pos[2] = math.random() * y_range + y_shift
-    robot_pos[1] = 0
-    robot_pos[2] = 0
+    robot_pos[1] = math.random() * x_r + x_sh
+    robot_pos[2] = math.random() * y_r + y_sh
+    -- robot_pos[1] = 0
+    -- robot_pos[2] = 0
     robot_pos[3] = start_pos[3]
     -- print ('robot location: ', robot_pos[1], robot_pos[2])
 
     local robot_ori = start_ori
-    start_ori[3] = math.random() * math.pi
+    robot_ori[3] = math.random() * math.pi
 
     -- sample target position
     local target_pos = {}
     -- target_pos[1] = math.random() * x_range - x_range/2
     -- target_pos[2] = math.random() * x_range - x_range/2
-    -- local dist_to_start = 0.3
-    -- target_pos[1] = 0 + robot_pos[1]
-    -- target_pos[2] = 0.5 + robot_pos[2]
-    target_pos[1] = 1
-    target_pos[2] = 1
+    target_pos[1] = math.random() * x_r - x_sh
+    target_pos[2] = math.random() * y_r - y_sh
+    -- target_pos[1] = 1
+    -- target_pos[2] = 1
     target_pos[3] = 0
     -- print ('target location: ', target_pos[1], target_pos[2])
 
@@ -142,8 +163,8 @@ function sample_init()
     simSetObjectPosition(robot_hd,-1,robot_pos)
     simSetObjectPosition(fake_robot_hd,-1,robot_pos)
 
-    simSetObjectQuaternion(robot_hd,-1,start_ori)
-    simSetObjectQuaternion(fake_robot_hd,-1,start_ori)
+    simSetObjectQuaternion(robot_hd,-1,robot_ori)
+    simSetObjectQuaternion(fake_robot_hd,-1,robot_ori)
 
     set_joint_positions(joint_hds, start_joints)
 
@@ -155,6 +176,9 @@ function sample_init()
     local res_target = simCheckCollision(target_hd, obstacle_all_hd)
 
     -- print (res_robot, res_target)
+    pre_pos = robot_pos
+    pre_ori = robot_ori
+    pre_tar_pose = target_pos 
 
     return res_robot+res_target
     -- print (res_robot, res_target)
@@ -162,17 +186,17 @@ function sample_init()
     -- path_dummy_list = create_path_dummy(g_path)
 end
 
-function init()
+function init(same_ep)
     remove_dummy()
     local init_value = 1
     while (init_value ~= 0) do
-        init_value = sample_init()
+        init_value = sample_init(same_ep)
     end
 
-    -- scale = scale + 0.0002
-    -- if scale > 1 then
-    --     scale = 1
-    -- end 
+    scale = scale + 0.001
+    if scale > 1 then
+        scale = 1
+    end 
 
     g_path = generate_path()
     path_dummy_list = create_path_dummy(g_path)
@@ -187,11 +211,11 @@ path_dummy_list = {}
 
 start_joints = {}
 
-x_range = 3
-x_shift = -1.5
+x_range = 2
+x_shift = -1
 
-y_range = 3
-y_shift = -1.5
+y_range = 2
+y_shift = -1
 
 scale = 0.05
 
@@ -207,6 +231,10 @@ joint_hds = get_joint_hds()
 start_pos = simGetObjectPosition(robot_hd, -1)
 start_joints = get_joint_positions(joint_hds)
 start_ori = simGetObjectQuaternion(robot_hd,-1)
+
+pre_pos = start_pos
+pre_ori = start_ori
+pre_tar_pose = start_pos 
 
 -- init()
 -- sleep(2)

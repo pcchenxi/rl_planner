@@ -10,24 +10,24 @@ import matplotlib.pyplot as plt
 
 action_list = []
 state_size = 182
-action_size = 9
+action_size = 27
 
 vrep.simxFinish(-1) # just in case, close all opened connections
 print 'init vrep'
 
 for a in range(-1, 2):
     for b in range(-1, 2):
-        # for c in range(-1, 2):
+        for c in range(-1, 2):
             # for d in range(-1, 2):
             #     for e in range(-1, 2):
-        action = []
-        action.append(a)
-        action.append(b)
-        action.append(0)
-        action.append(0)
-        action.append(0)
-        # print action
-        action_list.append(action)
+            action = []
+            action.append(a)
+            action.append(b)
+            action.append(c)
+            action.append(0)
+            action.append(0)
+            # print action
+            action_list.append(action)
         # print action_list
 
 # print action_list
@@ -48,6 +48,7 @@ class Simu_env:
         self.state_size = state_size
         self.action_size = action_size
         self.step_inep = 0
+        self.same_ep = 0
         # self.geometry('{0}x{1}'.format(MAZE_H * UNIT, MAZE_H * UNIT))
         # self.clientID = self._connect_vrep(port_num)
         
@@ -124,8 +125,10 @@ class Simu_env:
         self.step_inep = 0
         time.sleep(1)
         self.reached_index = -1
-        res,retInts,retFloats,retStrings,retBuffer = self.call_sim_function('rwRobot', 'reset')
+        res,retInts,retFloats,retStrings,retBuffer = self.call_sim_function('rwRobot', 'reset', [self.same_ep])
         state, reward, is_finish, info = self.step([0,0,0,0,0])
+        self.same_ep = 0
+
         # time.sleep(2)
         return state
 
@@ -173,19 +176,25 @@ class Simu_env:
 
         if dist < 0.1:              # when reach to the target
             is_finish = True
+            self.same_ep = 0
             reward = 5
 
-        if dist > 3:                # when too far away to the target
+        if dist > 5:                # when too far away to the target
             is_finish = True
+            self.same_ep = 1
             reward = -5
 
         if found_pose == 'f':       # when collision or no pose can be found
-            # is_finish = True  
+            is_finish = True 
+            self.same_ep = 1 
             reward = -10
 
         if self.step_inep > 200:
             is_finish = True 
+            self.same_ep = 1 
             reward = -2
 
+        if action[1] == -1:
+            reward -= 1
 
         return reward, is_finish

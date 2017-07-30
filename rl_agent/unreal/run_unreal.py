@@ -64,9 +64,8 @@ class Application(object):
   
       diff_global_t = trainer.process(self.sess,
                                       self.global_t,
-                                      self.summary_writer,
-                                      self.summary_op,
-                                      self.score_input)
+                                      self.score_input, self.vr_loss_input, self.rp_loss_input, 
+                                      self.summary_writer, self.summary_op_score, self.summary_op_loss)
       self.global_t += diff_global_t
 
   def run(self):
@@ -139,9 +138,18 @@ class Application(object):
     
     # summary for tensorboard
     self.score_input = tf.placeholder(tf.int32)
-    tf.summary.scalar("score", self.score_input)
-    
-    self.summary_op = tf.summary.merge_all()
+    self.vr_loss_input = tf.placeholder(tf.float32)
+    self.rp_loss_input = tf.placeholder(tf.float32)
+
+    self.summary_op_score = tf.summary.scalar("score", self.score_input)
+    merge_vr = tf.summary.scalar("value_replay_loss", self.vr_loss_input)
+    merge_rp = tf.summary.scalar("reward_prediction_loss", self.rp_loss_input)
+
+    self.summary_op_loss = tf.summary.merge([merge_vr, merge_rp])
+
+    # self.summary_op = tf.summary.merge_all()
+    # self.summary_op_score = tf.summary.merge([self.score_input])
+    # self.summary_op_loss = tf.summary.merge([self.vr_loss_input])
     self.summary_writer = tf.summary.FileWriter(flags.log_file,
                                                 self.sess.graph)
     

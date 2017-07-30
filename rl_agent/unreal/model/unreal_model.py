@@ -47,7 +47,8 @@ class UnrealModel(object):
         self._use_reward_prediction = use_reward_prediction
         self._pixel_change_lambda = pixel_change_lambda
         self._entropy_beta = entropy_beta
-        
+
+        self.state_size = 182
         self._create_network(for_display)
     
     def _create_network(self, for_display):
@@ -55,7 +56,7 @@ class UnrealModel(object):
         with tf.device(self._device), tf.variable_scope(scope_name) as scope:
             # # lstm
             # self.lstm_cell = tf.contrib.rnn.BasicLSTMCell(256, state_is_tuple=True)
-            
+
             # [base A3C network]
             self._create_base_network()
 
@@ -65,13 +66,13 @@ class UnrealModel(object):
             #     if for_display:
             #         self._create_pc_network_for_display()
 
-            # # [Value replay network]
-            # if self._use_value_replay:
-            #     self._create_vr_network()
+            # [Value replay network]
+            if self._use_value_replay:
+                self._create_vr_network()
 
             # # [Reawrd prediction network]
-            # if self._use_reward_prediction:
-            #     self._create_rp_network()
+            if self._use_reward_prediction:
+                self._create_rp_network()
             
             # self.reset_state()
 
@@ -80,10 +81,10 @@ class UnrealModel(object):
 
     def _create_base_network(self):
         # State (Base image input)
-        self.base_input = tf.placeholder("float", [None, 182])
+        self.base_input = tf.placeholder("float", [None, self.state_size])
 
         # Last action and reward
-        self.base_last_action_reward_input = tf.placeholder("float", [None, self._action_size+1])
+        # self.base_last_action_reward_input = tf.placeholder("float", [None, self._action_size+1])
         
         # feature extration layers
         # self.base_path_feature_output = self._base_fc_layers(self.
@@ -92,75 +93,55 @@ class UnrealModel(object):
         self.base_pi = self._base_policy_layer(self.base_feature_output) # policy output
         self.base_v  = self._base_value_layer(self.base_feature_output)  # value output
 
-    def _base_feature_layers(self, state_input, reuse=False):
-        with tf.variable_scope("base_conv", reuse=reuse) as scope:
-            self.path = tf.slice(state_input, [0, 0], [1, 2])
-            self.laser = tf.slice(state_input, [0, 2], [1, 180])
+    def _base_feature_layers(self, state_input, reuse=None):
+        with tf.variable_scope("base_feature", reuse=reuse) as scope:
+            self.path = tf.slice(state_input, [0, 0], [-1, 2])
+            self.laser = tf.slice(state_input, [0, 2], [-1, 180])
             laser_reshape = tf.reshape(self.laser, [-1, 180, 1])
             conv1 = tf.layers.conv1d(   inputs=laser_reshape,
                                         filters=16,
                                         kernel_size=8,
                                         padding="same",
-                                        activation=tf.nn.relu,
-                                        name="conv1")
-
+                                        activation=tf.nn.relu)
             conv2 = tf.layers.conv1d(   inputs=conv1,
                                         filters=32,
                                         kernel_size=4,
                                         padding="same",
-                                        activation=tf.nn.relu,
-                                        name="conv2")
-            conv_flat = tf.reshape(conv2, [-1, 1 * 180 * 32])
+                                        activation=tf.nn.relu)
+                                        
+            conv3 = tf.layers.conv1d(   inputs=conv2,
+                                        filters=32,
+                                        kernel_size=4,
+                                        padding="same",
+                                        activation=tf.nn.relu)
+            self.fobs_size = 1 * 180 * 32
+
+            conv_flat = tf.reshape(conv3, [-1, self.fobs_size])
+            conv_fc = tf.layers.dense(inputs=conv_flat, units=256, activation=tf.nn.relu)
+
+            # laser_flat = tf.reshape(self.laser, [-1, 180])
+            # laser_fc1 = tf.layers.dense(inputs=laser_flat, units=128, activation=tf.nn.relu)
+            # laser_fc2 = tf.layers.dense(inputs=laser_fc1, units=64, activation=tf.nn.relu)
+
             path_flat = tf.reshape(self.path, [-1, 2])
-            fc1 = tf.layers.dense(inputs=path_flat, units=64, activation=tf.nn.relu)
+            # fc1 = tf.layers.dense(inputs=path_flat, units=32, activation=tf.nn.relu)
 
-            feature = tf.concat([conv_flat, fc1], 1)
-            return (feature)
+            feature = tf.concat([conv_fc, path_flat], 1)
+            feature_fc = tf.layers.dense(inputs=feature, units=128, activation=tf.nn.relu)
 
-    def run_path_laser(self, sess, s_t):
-        # This run_base_policy_and_value() is used when forward propagating.
-        # so the step size is 1.
-        # sess.run( [self.path_laser], feed_dict = {self.base_input : [s_t]})
-        # pi_out: (1,3), v_out: (1)
-        print(sess.run( [self.path_laser], feed_dict = {self.base_input : [s_t]}))
-        result = sess.run( [self.path_laser], feed_dict = {self.base_input : [s_t]})
-        # print ((result[0][0].shape), (result[0][1].shape))
-        # return path, laser
-
-    def _base_fc_layers(self, state_input, reuse=False):
-        with tf.variable_scope("base_fc", reuse=reuse) as scope:
-            # Weights
-            size = 1 * 180 * 32 + 64
-            W_fc1, b_fc1 = self._fc_variable([size, 128], "base_fc1")
-            # W_fc2, b_fc2 = self._fc_variable([64, 64], "base_fc2")
-
-            # Nodes
-            state_flat = tf.reshape(state_input, [-1, size])
-
-            h_fc1 = tf.nn.relu(tf.matmul(state_flat, W_fc1) + b_fc1)
-            # h_fc2 = tf.nn.relu(tf.matmul(h_fc1, W_fc2) + b_fc2)
-            return h_fc1
+            self.size = 128
+            return (feature_fc)
 
 
-    def _base_policy_layer(self, feature_outputs, reuse=False):
+    def _base_policy_layer(self, feature_outputs, reuse=None):
         with tf.variable_scope("base_policy", reuse=reuse) as scope:
-            # Weight for policy output layer
-            size = 1 * 180 * 32 + 64
-            W_fc_p, b_fc_p = self._fc_variable([size, self._action_size], "base_fc_p")
-            # Policy (output)
-
-            base_pi = tf.nn.softmax(tf.matmul(feature_outputs, W_fc_p) + b_fc_p)
-            return base_pi
+            base_pi = tf.layers.dense(inputs=feature_outputs, units=self._action_size, activation=tf.nn.relu, name="base_fc_p")
+            return tf.nn.softmax(base_pi)
 
 
-    def _base_value_layer(self, feature_outputs, reuse=False):
+    def _base_value_layer(self, feature_outputs, reuse=None):
         with tf.variable_scope("base_value", reuse=reuse) as scope:
-            # Weight for value output layer
-            size = 1 * 180 * 32 + 64
-            W_fc_v, b_fc_v = self._fc_variable([size, 1], "base_fc_v")
-            
-            # Value (output)
-            v_ = tf.matmul(feature_outputs, W_fc_v) + b_fc_v
+            v_ = tf.layers.dense(inputs=feature_outputs, units=1, activation=tf.nn.relu, name="base_fc_v")
             base_v = tf.reshape( v_, [-1] )
             return base_v
 
@@ -187,42 +168,31 @@ class UnrealModel(object):
     #     self.pc_q, self.pc_q_max = self._pc_deconv_layers(pc_lstm_outputs)
 
 
-    # def _create_vr_network(self):
-    #     # State (Image input)
-    #     self.vr_input = tf.placeholder("float", [None, 84, 84, 3])
+    def _create_vr_network(self):
+        self.vr_input = tf.placeholder("float", [None, self.state_size])
 
-    #     # Last action and reward
-    #     self.vr_last_action_reward_input = tf.placeholder("float", [None, self._action_size+1])
+        vr_feature_output = self._base_feature_layers(self.vr_input, reuse=True)
 
-    #     # VR conv layers
-    #     vr_conv_output = self._base_conv_layers(self.vr_input, reuse=True)
-
-    #     # pc lastm layers
-    #     vr_initial_lstm_state = self.lstm_cell.zero_state(1, tf.float32)
-    #     # (Initial state is always resetted.)
-        
-    #     vr_lstm_outputs, _ = self._base_lstm_layer(vr_conv_output,
-    #                                             self.vr_last_action_reward_input,
-    #                                             vr_initial_lstm_state,
-    #                                             reuse=True)
-    #     # value output
-    #     self.vr_v  = self._base_value_layer(vr_lstm_outputs, reuse=True)
-
+        # vr_v = tf.layers.dense(inputs=vr_feature_output, units=1, activation=tf.nn.relu, name="fc_1")
+        vr_v  = self._base_value_layer(vr_feature_output, reuse=True)
+        output = tf.reshape( vr_v, [-1] )
+        self.vr_v = output
     
-    # def _create_rp_network(self):
-    #     self.rp_input = tf.placeholder("float", [3, 84, 84, 3])
+    def _create_rp_network(self):
+        self.rp_input = tf.placeholder("float", [None, self.state_size])
+        self.rp_action = tf.placeholder("float", [None, 1])
 
-    #     # RP conv layers
-    #     rp_conv_output = self._base_conv_layers(self.rp_input, reuse=True)
-    #     rp_conv_output_rehaped = tf.reshape(rp_conv_output, [1,9*9*32*3])
+        # RP conv layers
+        self.rp_feature_output = self._base_feature_layers(self.rp_input, reuse=True)    
+            
+        self.rp_feature_action = tf.concat([self.rp_feature_output, self.rp_action], 1)
+
+        # rp_fc = tf.layers.dense(inputs=rp_feature_action, units=128, activation=tf.nn.relu, name="fc_128")
         
-    #     with tf.variable_scope("rp_fc") as scope:
-    #         # Weights
-    #         W_fc1, b_fc1 = self._fc_variable([9*9*32*3, 3], "rp_fc1")
-
-    #         # Reawrd prediction class output. (zero, positive, negative)
-    #         self.rp_c = tf.nn.softmax(tf.matmul(rp_conv_output_rehaped, W_fc1) + b_fc1)
-    #         # (1,3)
+        rp_fc = tf.layers.dense(inputs=self.rp_feature_action, units=3, activation=tf.nn.relu)
+        output = tf.nn.softmax(rp_fc)
+        # output = tf.reshape( rp_c, [-1] )
+        self.rp_c = output
 
     def _base_loss(self):
         # [base A3C]
@@ -250,8 +220,8 @@ class UnrealModel(object):
         # (Learning rate for Critic is half of Actor's, so multiply by 0.5)
         value_loss = 0.5 * tf.nn.l2_loss(self.base_r - self.base_v)
         
-        base_loss = policy_loss + value_loss
-        return base_loss
+        self.base_loss = policy_loss + value_loss
+        return self.base_loss
 
   
     # def _pc_loss(self):
@@ -271,29 +241,30 @@ class UnrealModel(object):
     #     return pc_loss
 
     
-    # def _vr_loss(self):
-    #     # R (input for value)
-    #     self.vr_r = tf.placeholder("float", [None])
+    def _vr_loss(self):
+        # R (input for value)
+        self.vr_r = tf.placeholder("float", [None])
         
-    #     # Value loss (output)
-    #     vr_loss = tf.nn.l2_loss(self.vr_r - self.vr_v)
-    #     return vr_loss
+        # Value loss (output)
+        self.vr_loss = tf.nn.l2_loss(self.vr_r - self.vr_v)
+        return self.vr_loss
 
 
-    # def _rp_loss(self):
-    #     # reward prediction target. one hot vector
-    #     self.rp_c_target = tf.placeholder("float", [1,3])
-        
-    #     # Reward prediction loss (output)
-    #     rp_c = tf.clip_by_value(self.rp_c, 1e-20, 1.0)
-    #     rp_loss = -tf.reduce_sum(self.rp_c_target * tf.log(rp_c))
-    #     return rp_loss
+    def _rp_loss(self):
+        # reward prediction target. one hot vector
+        self.rp_reward = tf.placeholder("float", [None, 3])
+
+        # rp_c = tf.clip_by_value(self.rp_c, 1e-20, 1.0)
+        self.rp_loss = -tf.reduce_sum(self.rp_reward * tf.log(self.rp_c))
+        # Reward prediction loss (output)
+        # self.rp_loss = tf.nn.l2_loss(self.rp_reward - self.rp_c)
+        return self.rp_loss
         
         
     def prepare_loss(self):
         with tf.device(self._device):
-            loss = self._base_loss()
-            
+            base_loss = self._base_loss()
+            loss = base_loss
             if self._use_pixel_change:
                 pc_loss = self._pc_loss()
                 loss = loss + pc_loss
@@ -309,7 +280,7 @@ class UnrealModel(object):
             self.total_loss = loss
 
 
-    def run_base_policy_and_value(self, sess, s_t, last_action_reward):
+    def run_base_policy_and_value(self, sess, s_t):
         # This run_base_policy_and_value() is used when forward propagating.
         # so the step size is 1.
         pi_out, v_out = sess.run( [self.base_pi, self.base_v], feed_dict = {self.base_input : [s_t]})
@@ -317,14 +288,14 @@ class UnrealModel(object):
         return (pi_out[0], v_out[0])
 
   
-    def run_base_policy_value_pc_q(self, sess, s_t, last_action_reward):
-        # For display tool.
-        pi_out, v_out, self.base_lstm_state_out, q_disp_out, q_max_disp_out = \
-            sess.run( [self.base_pi, self.base_v, self.base_lstm_state, self.pc_q_disp, self.pc_q_max_disp],
-                    feed_dict = {self.base_input : [s_t], self.base_last_action_reward_input : [last_action_reward]} )
+    # def run_base_policy_value_pc_q(self, sess, s_t, last_action_reward):
+    #     # For display tool.
+    #     pi_out, v_out, self.base_lstm_state_out, q_disp_out, q_max_disp_out = \
+    #         sess.run( [self.base_pi, self.base_v, self.base_lstm_state, self.pc_q_disp, self.pc_q_max_disp],
+    #                 feed_dict = {self.base_input : [s_t], self.base_last_action_reward_input : [last_action_reward]} )
         
-        # pi_out: (1,3), v_out: (1), q_disp_out(1,20,20, action_size)
-        return (pi_out[0], v_out[0], q_disp_out[0])
+    #     # pi_out: (1,3), v_out: (1), q_disp_out(1,20,20, action_size)
+    #     return (pi_out[0], v_out[0], q_disp_out[0])
 
   
     def run_base_value(self, sess, s_t, last_action_reward):
@@ -343,17 +314,17 @@ class UnrealModel(object):
         return q_max_out[0]
 
     
-    def run_vr_value(self, sess, s_t, last_action_reward):
+    def run_vr_value(self, sess, s_t):
         vr_v_out = sess.run( self.vr_v,
-                            feed_dict = {self.vr_input : [s_t],
-                                        self.vr_last_action_reward_input : [last_action_reward]} )
+                            feed_dict = {self.vr_input : [s_t]})
         return vr_v_out[0]
 
   
-    def run_rp_c(self, sess, s_t):
+    def run_rp_c(self, sess, s_t, action):
         # For display tool
         rp_c_out = sess.run( self.rp_c,
-                            feed_dict = {self.rp_input : s_t} )
+                            feed_dict = {self.rp_input : [s_t], 
+                                        self.rp_action : [action]} )
         return rp_c_out[0]
 
     

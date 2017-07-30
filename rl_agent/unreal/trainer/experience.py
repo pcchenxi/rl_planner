@@ -9,11 +9,13 @@ from collections import deque
 
 
 class ExperienceFrame(object):
-  def __init__(self, state, reward, action, terminal, last_action, last_reward):
+  def __init__(self, state, reward, action, terminal, next_state, last_action, last_reward):
     self.state = state
     self.action = action # (Taken action with the 'state')
-    self.reward = np.clip(reward, -1, 1) # Reveived reward with the 'state'. (Clipped)
+    # self.reward = np.clip(reward, -1, 1) # Reveived reward with the 'state'. (Clipped)
+    self.reward = reward
     self.terminal = terminal # (Whether terminated when 'state' was inputted)
+    self.next_state = next_state
     # self.pixel_change = pixel_change
     self.last_action = last_action # (After this last action was taken, agent move to the 'state')
     self.last_reward = np.clip(last_reward, -1, 1) # (After this last reward was received, agent move to the 'state') (Clipped)
