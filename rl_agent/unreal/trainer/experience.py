@@ -63,7 +63,7 @@ class Experience(object):
 
     # append index
     if frame_index >= 3:
-      if frame.reward == 0:
+      if frame.reward < 0:
         self._zero_reward_indices.append(frame_index)
       else:
         self._non_zero_reward_indices.append(frame_index)
@@ -110,6 +110,7 @@ class Experience(object):
     """
     Sample 4 successive frames for reward prediction.
     """
+    sample_frame_size = 10
     if np.random.randint(2) == 0:
       from_zero = True
     else:
@@ -129,12 +130,12 @@ class Experience(object):
       index = np.random.randint(len(self._non_zero_reward_indices))
       end_frame_index = self._non_zero_reward_indices[index]
 
-    start_frame_index = end_frame_index-3
+    start_frame_index = end_frame_index-sample_frame_size
     raw_start_frame_index = start_frame_index - self._top_frame_index
 
     sampled_frames = []
     
-    for i in range(4):
+    for i in range(sample_frame_size):
       frame = self._frames[raw_start_frame_index+i]
       sampled_frames.append(frame)
 

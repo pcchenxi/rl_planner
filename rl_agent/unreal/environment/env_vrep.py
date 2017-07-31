@@ -48,7 +48,8 @@ class Simu_env:
         self.state_size = state_size
         self.action_size = action_size
         self.step_inep = 0
-        self.same_ep = 0
+        self.game_level = 2
+        self.succed_time = 0
         # self.geometry('{0}x{1}'.format(MAZE_H * UNIT, MAZE_H * UNIT))
         # self.clientID = self._connect_vrep(port_num)
         
@@ -125,10 +126,8 @@ class Simu_env:
         self.step_inep = 0
         time.sleep(1)
         self.reached_index = -1
-        res,retInts,retFloats,retStrings,retBuffer = self.call_sim_function('rwRobot', 'reset', [self.same_ep])
+        res,retInts,retFloats,retStrings,retBuffer = self.call_sim_function('rwRobot', 'reset', [self.game_level])
         state, reward, is_finish, info = self.step([0,0,0,0,0])
-        self.same_ep = 0
-
         # time.sleep(2)
         return state
 
@@ -163,38 +162,41 @@ class Simu_env:
     ###################################################  reward function ###################################################################
     def compute_reward(self, action, paty_x, path_y, found_pose):
         is_finish = False
-        reward = 0
+        reward = -1
 
         dist = math.sqrt(paty_x[-1]*paty_x[-1] + path_y[-1]*path_y[-1])
         # dist = paty_x[-1]
         if dist < self.dist_pre:  # when closer to target
-            reward = 1
+            reward += 2            # 1
         else:
-            reward = -2
+            reward -= 2            # -3
 
         self.dist_pre = dist
 
         if dist < 0.1:              # when reach to the target
             is_finish = True
-            self.same_ep = 0
-            reward = 5
+            self.succed_time += 1
+            reward += 10            # 9
 
         if dist > 5:                # when too far away to the target
             is_finish = True
-            self.same_ep = 1
-            reward = -5
+            self.succed_time = 0
+            reward -= 2             # -3
 
         if found_pose == 'f':       # when collision or no pose can be found
             is_finish = True 
-            self.same_ep = 1 
-            reward = -10
+            self.succed_time = 0 
+            reward -= 10            # -11
 
         if self.step_inep > 200:
             is_finish = True 
-            self.same_ep = 1 
-            reward = -2
+            self.succed_time = 0 
+            reward -= 2             # -3
 
-        if action[1] == -1:
-            reward -= 1
+        # if action[1] == -1:
+        #     reward -= 1
+
+        if self.succed_time > 20:
+            self.game_level += 1
 
         return reward, is_finish

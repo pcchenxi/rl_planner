@@ -323,8 +323,8 @@ class Trainer(object):
   
   def _process_rp(self):
     # [Reward prediction]
-    # rp_experience_frames = self.experience.sample_rp_sequence()
-    rp_experience_frames = self.experience.sample_sequence(self.local_t_max+1)
+    rp_experience_frames = self.experience.sample_rp_sequence()
+    # rp_experience_frames = self.experience.sample_sequence(self.local_t_max+1)
 
     # 4 frames
 
@@ -335,13 +335,15 @@ class Trainer(object):
     for frame in rp_experience_frames[1:]:
         batch_rp_action.append ([frame.action])
         batch_rp_si.append(frame.state)
-        rp_c = [0.0, 0.0, 0.0]
-        if frame.reward < -4:
+        rp_c = [0.0, 0.0, 0.0, 0.0]
+        if frame.reward == 9:
               rp_c[0] = 1
-        elif frame.reward < -1:
+        elif frame.reward == 1:
               rp_c[1] = 1
-        else:
+        elif frame.reward == -3:
               rp_c[2] = 1
+        else:
+              rp_c[3] = 1
         batch_rp_reward.append(rp_c)
    
     return batch_rp_si, batch_rp_action, batch_rp_reward

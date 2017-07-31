@@ -189,7 +189,7 @@ class UnrealModel(object):
 
         # rp_fc = tf.layers.dense(inputs=rp_feature_action, units=128, activation=tf.nn.relu, name="fc_128")
         
-        rp_fc = tf.layers.dense(inputs=self.rp_feature_action, units=3, activation=tf.nn.relu)
+        rp_fc = tf.layers.dense(inputs=self.rp_feature_action, units=4, activation=tf.nn.relu)    # rp number !!
         output = tf.nn.softmax(rp_fc)
         # output = tf.reshape( rp_c, [-1] )
         self.rp_c = output
@@ -252,7 +252,7 @@ class UnrealModel(object):
 
     def _rp_loss(self):
         # reward prediction target. one hot vector
-        self.rp_reward = tf.placeholder("float", [None, 3])
+        self.rp_reward = tf.placeholder("float", [None, 4])
 
         # rp_c = tf.clip_by_value(self.rp_c, 1e-20, 1.0)
         self.rp_loss = -tf.reduce_sum(self.rp_reward * tf.log(self.rp_c))

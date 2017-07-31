@@ -9,9 +9,9 @@ require("robot_control")
 -------- remote functions ---------------------
 function reset(inInts,inFloats,inStrings,inBuffer)
     -- print (#inFloats)
-    local same_ep = inFloats[1]
-    print (same_ep)
-    init(same_ep)
+    local level = inFloats[1]
+    print (level)
+    init(level)
     return {}, {}, {}, ''
 end
 
@@ -115,49 +115,79 @@ function transform_path_to_robotf(path_d_list, robot_hd)
     return path_in_robotf
 end
 
-function sample_init(same_ep)
-    if same_ep == 1 then
-        simSetObjectPosition(robot_hd,-1,pre_pos)
-        simSetObjectPosition(fake_robot_hd,-1,pre_pos)
-
-        simSetObjectQuaternion(robot_hd,-1,pre_ori)
-        simSetObjectQuaternion(fake_robot_hd,-1,pre_ori)
-
-        set_joint_positions(joint_hds, start_joints)
-        simSetObjectPosition(target_hd,-1,pre_tar_pose)
-        print('same ep!')
-        return 0
-    end
-    -- sample start robot position
-    local dist_to_start = 0.2
-    local x_r = x_range*scale
-    local y_r = y_range*scale
-    local x_sh = -x_r/2
-    local y_sh = -y_r/2
+function sample_init(level)
+    print ('level: '..level)
 
     local robot_pos = {}
-    -- robot_pos[1] = math.random() * x_range + x_shift
-    -- robot_pos[2] = math.random() * y_range + y_shift
-    -- robot_pos[1] = math.random() * x_r + x_sh
-    -- robot_pos[2] = math.random() * y_r + y_sh
-    robot_pos[1] = -1
-    robot_pos[2] = -1
-    robot_pos[3] = start_pos[3]
-    -- print ('robot location: ', robot_pos[1], robot_pos[2])
-
-    local robot_ori = start_ori
-    robot_ori[3] = 0--math.random() * math.pi
-
-    -- sample target position
     local target_pos = {}
-    -- target_pos[1] = math.random() * x_range - x_range/2
-    -- target_pos[2] = math.random() * x_range - x_range/2
-    -- target_pos[1] = math.random() * x_r - x_sh
-    -- target_pos[2] = math.random() * y_r - y_sh
-    target_pos[1] = 1
-    target_pos[2] = 1
-    target_pos[3] = 0
-    -- print ('target location: ', target_pos[1], target_pos[2])
+    local robot_ori = start_ori
+    set_joint_positions(joint_hds, start_joints)
+
+    if level == 1 then
+        -- sample initial robot pose
+        robot_pos[1] = 0
+        robot_pos[2] = 0
+        robot_pos[3] = start_pos[3]
+
+        robot_ori[3] = 0--math.random() * math.pi*2
+
+        -- sample initial target pose
+        target_pos[1] = 0.5
+        target_pos[2] = 0.5
+        target_pos[3] = 0
+
+    elseif level == 2 then
+        -- sample initial robot pose
+        robot_pos[1] = 0
+        robot_pos[2] = 0
+        robot_pos[3] = start_pos[3]
+
+        robot_ori[3] = math.random() * math.pi*2
+        print (robot_ori[3])
+        -- sample initial target pose
+        target_pos[1] = 0.5
+        target_pos[2] = 0.5
+        target_pos[3] = 0
+
+    elseif level == 3 then
+        -- sample initial robot pose
+        robot_pos[1] = -1
+        robot_pos[2] = -1
+        robot_pos[3] = start_pos[3]
+
+        robot_ori[3] = math.random() * math.pi*2
+
+        -- sample initial target pose
+        target_pos[1] = 1
+        target_pos[2] = 1
+        target_pos[3] = 0
+
+    else
+        -- sample initial robot pose
+        local x_r = x_range*scale
+        local y_r = y_range*scale
+        local x_sh = -x_r/2
+        local y_sh = -y_r/2
+
+        local robot_pos = {}
+        -- robot_pos[1] = math.random() * x_range + x_shift
+        -- robot_pos[2] = math.random() * y_range + y_shift
+        robot_pos[1] = math.random() * x_r + x_sh
+        robot_pos[2] = math.random() * y_r + y_sh
+        robot_pos[3] = start_pos[3]
+
+        robot_ori[3] = math.random() * math.pi*2
+
+        -- sample initial target pose
+        -- target_pos[1] = math.random() * x_range - x_range/2
+        -- target_pos[2] = math.random() * x_range - x_range/2
+        target_pos[1] = math.random() * x_r - x_sh
+        target_pos[2] = math.random() * y_r - y_sh
+        target_pos[3] = 0
+
+        print (robot_pos[1], robot_pos[2], robot_pos[3])
+
+    end
 
     -- set robot --
     simSetObjectPosition(robot_hd,-1,robot_pos)
@@ -186,11 +216,11 @@ function sample_init(same_ep)
     -- path_dummy_list = create_path_dummy(g_path)
 end
 
-function init(same_ep)
+function init(level)
     remove_dummy()
     local init_value = 1
     while (init_value ~= 0) do
-        init_value = sample_init(same_ep)
+        init_value = sample_init(level)
     end
 
     scale = scale + 0.0001
